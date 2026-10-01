@@ -1,14 +1,30 @@
-FROM node:24-slim
+# ---- build stage: has a compiler, because better-sqlite3 is a native module
+# and may have to be built from source if no prebuilt binary matches.
+FROM node:24-slim AS build
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY src/config.ts ./src/config.ts
+RUN npm ci
+COPY src ./src
+RUN npm run build
+
+# ---- runtime stage: no compiler, just the built app and its dependencies.
+# Dev dependencies are kept on purpose: the Prisma CLI applies migrations at startup.
+FROM node:24-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Dev dependencies are kept on purpose: the build needs the Nest CLI and tsc,
-# and the container applies database migrations at startup with the Prisma CLI.
-COPY package.json package-lock.json prisma.config.ts tsconfig.json tsconfig.build.json nest-cli.json ./
-COPY prisma ./prisma
-COPY src ./src
-RUN npm ci --include=dev && npm run build
+COPY --from=build /app/package.json /app/prisma.config.ts ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/src/config.ts ./src/config.ts
+COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
 
