@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request, { Response } from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
+import { setupSwagger } from '../src/swagger';
 
 const CODE_PATTERN = /^[0-9A-Za-z]{7}$/;
 
@@ -36,6 +37,7 @@ describe('URL shortener (e2e)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
+    setupSwagger(app);
     await app.init();
     http = app.getHttpServer();
   });
@@ -179,6 +181,22 @@ describe('URL shortener (e2e)', () => {
         error: 'Not Found',
         message: 'Short link "doesnotexist" not found',
       });
+    });
+  });
+
+  describe('API docs', () => {
+    it('serves the OpenAPI document with all three endpoints', async () => {
+      const res = await request(http).get('/docs-json').expect(200);
+
+      const paths = Object.keys(body<{ paths: object }>(res).paths);
+      expect(paths).toEqual(
+        expect.arrayContaining(['/shorten', '/stats/{code}', '/{code}']),
+      );
+    });
+
+    it('serves Swagger UI instead of treating "docs" as a short code', async () => {
+      const res = await request(http).get('/docs').expect(200);
+      expect(res.text).toContain('swagger-ui');
     });
   });
 });

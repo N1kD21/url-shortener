@@ -1,6 +1,12 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class ShortenUrlDto {
+  @ApiProperty({
+    description: 'Absolute http(s) URL to shorten',
+    example: 'https://example.com/some/very/long/path?with=query',
+    maxLength: 2048,
+  })
   @IsUrl(
     {
       protocols: ['http', 'https'],

@@ -4,6 +4,7 @@ A small REST API that shortens URLs, in the spirit of bit.ly.
 
 - **Stack:** Node.js, TypeScript, [NestJS](https://nestjs.com/), [Prisma](https://www.prisma.io/), SQLite
 - **Endpoints:** `POST /shorten`, `GET /:code`, `GET /stats/:code`
+- **Interactive docs:** Swagger UI at `/docs`, OpenAPI JSON at `/docs-json`
 - **Zero external services:** the database is a single SQLite file, so the project runs with Node alone (or with Docker)
 
 ## Requirements
@@ -50,6 +51,41 @@ All settings come from environment variables (or a `.env` file, see [.env.exampl
 | `PORT`         | `3000`                  | Port the HTTP server listens on                                |
 | `BASE_URL`     | `http://localhost:3000` | Public base URL used to build `shortUrl` in `POST /shorten`    |
 | `DATABASE_URL` | `file:./dev.db`         | SQLite file location, relative to the project root             |
+
+## API documentation (Swagger)
+
+Once the service is running, open **http://localhost:3000/docs** for interactive Swagger UI, or fetch the raw OpenAPI 3 document at `http://localhost:3000/docs-json` (importable into Postman or Insomnia).
+
+Swagger UI's "Try it out" on `GET /{code}` makes the browser follow the redirect with `fetch`, so it may show a CORS or network error even though the redirect worked. Open the short URL in a browser tab or use `curl -i` to see the `302` itself.
+
+## How it works
+
+```mermaid
+flowchart LR
+    client([Client<br/>browser / curl])
+
+    subgraph app [NestJS application]
+        direction LR
+        pipe[ValidationPipe<br/>global, checks request bodies]
+        ctrl[LinksController<br/>HTTP in / HTTP out]
+        svc[LinksService<br/>business logic]
+        gen[generateShortCode<br/>random base62]
+        prisma[PrismaService<br/>database client]
+        swagger[Swagger UI<br/>/docs]
+    end
+
+    db[(SQLite<br/>table Link)]
+
+    client -->|POST /shorten<br/>GET /:code<br/>GET /stats/:code| pipe
+    pipe --> ctrl
+    ctrl --> svc
+    svc --> gen
+    svc --> prisma
+    prisma --> db
+    client -.->|GET /docs| swagger
+```
+
+Sequence diagrams for each endpoint, the data model and the startup flow are in [docs/architecture.md](docs/architecture.md). GitHub renders them as images.
 
 ## API
 
@@ -141,7 +177,7 @@ npm run test:e2e    # end-to-end tests over HTTP against a throwaway SQLite data
 npm run lint        # ESLint + Prettier
 ```
 
-The e2e suite creates `./test.db`, applies the real migrations to it, boots the application and exercises every endpoint, including each validation error and the 404 paths.
+The e2e suite creates `./test.db`, applies the real migrations to it, boots the application and exercises every endpoint, including each validation error, the 404 paths and the Swagger routes.
 
 ## Project structure
 
@@ -149,9 +185,12 @@ The e2e suite creates `./test.db`, applies the real migrations to it, boots the 
 prisma/
   schema.prisma          data model (one table: Link)
   migrations/            SQL migrations, applied with `prisma migrate deploy`
+docs/
+  architecture.md        Mermaid diagrams: components, data model, request flows
 prisma.config.ts         Prisma CLI configuration (schema, migrations, database URL)
 src/
   main.ts                bootstrap
+  swagger.ts             Swagger UI / OpenAPI setup
   app.module.ts          root module, global validation pipe
   config.ts              environment variables with defaults
   prisma/                PrismaService (database client) as a global module
@@ -159,7 +198,7 @@ src/
     links.controller.ts  the three HTTP endpoints
     links.service.ts     create / resolve + count / stats
     short-code.ts        random base62 code generator
-    dto/                 request validation (class-validator)
+    dto/                 request validation (class-validator) and response schemas for Swagger
 test/
   links.e2e-spec.ts      end-to-end tests
   global-setup.ts        prepares the test database
