@@ -21,7 +21,7 @@ git clone <this repository> url-shortener
 cd url-shortener
 
 npm install                 # installs dependencies and generates the Prisma client
-cp .env.example .env        # optional: the defaults match the example file
+cp .env.example .env        # optional: the defaults match the example file (Windows cmd: copy)
 npm run prisma:migrate      # creates ./dev.db and applies the migrations
 npm run start               # API is up at http://localhost:3000
 ```
@@ -33,6 +33,8 @@ npm run start:dev           # watch mode with auto-reload
 npm run build && npm run start:prod   # compiled production build
 npm run prisma:studio       # browse the database in Prisma Studio
 ```
+
+Works on Linux, macOS and Windows. The SQLite driver ships prebuilt binaries for all three, so no compiler is needed.
 
 ## Run with Docker
 

@@ -17,8 +17,13 @@ RUN npm run build
 # ---- runtime stage: no compiler, just the built app and its dependencies.
 # Dev dependencies are kept on purpose: the Prisma CLI applies migrations at startup.
 FROM node:24-slim
+# Prisma's migration engine needs OpenSSL, which the slim image does not ship.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
 
 COPY --from=build /app/package.json /app/prisma.config.ts ./
 COPY --from=build /app/node_modules ./node_modules

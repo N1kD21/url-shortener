@@ -8,8 +8,9 @@ import { join } from 'node:path';
  * as production.
  */
 export default function globalSetup() {
-  const dbFile = join(__dirname, '..', 'test.db');
-  rmSync(dbFile, { force: true });
-  process.env.DATABASE_URL = `file:${dbFile}`;
+  rmSync(join(__dirname, '..', 'test.db'), { force: true });
+  // Relative URL (resolved from the project root by both Prisma CLI and the
+  // runtime adapter) so it works the same on Windows, macOS and Linux.
+  process.env.DATABASE_URL = 'file:./test.db';
   execSync('npx prisma migrate deploy', { stdio: 'inherit', env: process.env });
 }
